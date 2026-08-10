@@ -1,66 +1,72 @@
 # Supplier Data Pipeline
 
-## What
+Инкрементальный импорт публичных товарных каталогов: контроль схемы,
+нормализация, консервативное сопоставление, snapshots, дельты и очередь ручной
+проверки. В репозитории есть локальные контрактные тесты и отдельный
+воспроизводимый запуск по трём реальным открытым каталогам.
 
-Async, local-first supplier ingestion reference implementation. It crawls paginated synthetic REST, HTML, dynamic and internal JSON sources; normalizes products; proposes conservative matches; persists checkpoints and snapshots; and exposes deltas/review through a control API.
+![Поток импорта](studies/openfacts-catalog-run-2026-08-10/graphs/ingestion-flow.svg)
 
-## Why
+## Реальный запуск
 
-A supplier import is not just “download JSON and upsert.” Sources throttle, time out, change schemas and remove products; retries can repeat batches; a matching tie can merge different SKUs. This project preserves transport cursors, batch identity, snapshot history and manual-review evidence separately.
+`studies/openfacts-catalog-run-2026-08-10/` фиксирует read-only запуск от
+2026-08-10 для Open Food Facts, Open Beauty Facts и Open Pet Food Facts. Это
+три публичных каталога одного API-семейства, а не коммерческие supplier feeds.
+Для каждого сделан ровно один ограниченный запрос `v2/search`; результаты,
+хэши ответов, поля схемы, дельты и ошибки находятся в
+[results.json](studies/openfacts-catalog-run-2026-08-10/results.json) и
+[source-manifest.json](studies/openfacts-catalog-run-2026-08-10/source-manifest.json).
 
-## Architecture
+![Метрики запуска](studies/openfacts-catalog-run-2026-08-10/graphs/source-metrics.svg)
 
-- `adapters.py`: async REST, HTML, internal JSON and dynamic/optional Playwright boundaries.
-- Domain/normalization/matching modules: canonical product and conservative candidate decisions.
-- `persistence.py`: repository contract and real SQLAlchemy Core SQLite implementation.
-- `store.py`: dependency-light sqlite3 implementation used for parity/failure tests.
-- Orchestrator: bounded async page concurrency, rate control, conditional metadata, checkpoints and commit.
-- `api.py`: crawl/run/product/delta/review control surface.
+Полные сырые ответы не коммитятся. Их местоположение, SHA-256 и размер
+сохранены в manifest; так репозиторий не распространяет чужое содержимое
+каталогов и всё же позволяет проверить происхождение результатов. Детали
+источников, лицензии и лимиты запросов описаны в
+[docs/source-policy.md](docs/source-policy.md).
 
-## Key engineering decisions
+## Что проверяет код
 
-- Only localhost, `.local` and `.test` sources are accepted by the demo API.
-- Retry uses exponential backoff with jitter only for transport-safe reads.
-- Page checkpoints survive a crash; only the newest failed checkpoint is transferred.
-- Source and product fingerprints distinguish drift from unchanged data.
-- Every committed product revision is stored in snapshot history.
-- Matching ties and weak fuzzy candidates enter a review queue instead of auto-merging.
-- Candidate reviews are staged with their batch and become visible only with the same local commit as products and deltas; failed batches discard them.
-- Deltas explicitly distinguish `created`, `updated`, `unchanged`, `missing`, `restored`.
+- `OpenFactsSearchAdapter` задаёт идентифицирующий User-Agent, ограничивает
+  частоту запросов и валидирует обязательные `code` и `product_name` до записи.
+- `Pipeline` сохраняет checkpoint после каждой страницы, отделяет staging от
+  commit и переносит только последний незавершённый batch.
+- SQLite и SQLAlchemy Core репозитории хранят snapshots, `created`/`updated`/
+  `missing`/`restored` дельты и ручные решения вместе с успешным batch.
+- Matcher автоматически принимает только сильный exact-кандидат; слабые и
+  равные кандидаты попадают в review queue.
+- Транспортные контрактные тесты моделируют retry, HTTP 429/500, timeout,
+  broken HTML, schema drift, conditional fetch, restart, pagination и
+  идемпотентность batch.
 
-## Run
+Диаграмма и сценарий: [docs/architecture.md](docs/architecture.md). Пошаговый
+запуск: [docs/runbook.md](docs/runbook.md).
+
+## Быстрый старт
 
 ```bash
 python3.12 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -e .
-.venv/bin/uvicorn supplier_pipeline.api:app
+.venv/bin/python -m pip install -e '.[dev]'
+PYTHONPATH=src .venv/bin/python -m pytest -q
 ```
 
-The minimal install includes REST/HTML/internal JSON adapters, SQLAlchemy-backed local SQLite mode and the API. It does not require Playwright.
-
-Optional browser adapter:
+Контрольный API запускает только явно синтетические localhost/.local/.test
+источники, чтобы случайно не превратить HTTP endpoint в произвольный crawler:
 
 ```bash
-.venv/bin/python -m pip install -e '.[playwright]'
-# Then install a browser with: .venv/bin/playwright install chromium
+PYTHONPATH=src .venv/bin/uvicorn supplier_pipeline.api:app
 ```
 
-## Test
+## Ограничения
 
-```bash
-.venv/bin/pip install -e '.[dev]'
-.venv/bin/python -m pytest -q
-```
-
-API: `POST /crawl`, `GET /runs`, `GET /products`, `GET /deltas`, `GET /review`, `POST /review/{id}/resolve`.
-
-Tests use `httpx.MockTransport` and synthetic HTML/JSON. They cover 429, 500, timeout, broken HTML, conditional 304, schema drift, duplicate identifiers, ambiguous mapping, review creation, pagination, crash resume, SQLite/SQLAlchemy persistence, snapshot history, idempotent batches and missing/restored products.
-
-## Limitations
-
-- External supplier websites are intentionally replaced by local synthetic fixtures.
-- Playwright adapter code is present, but browser binaries were not installed or executed.
-- `bsl/ImportEndpoint.bsl` is an illustrative configuration-mapped adapter, not a standalone runnable 1C module.
-- No production auth, proxy policy, distributed worker coordination or PostgreSQL migration is included.
-- The SQLite adapters are local single-writer demos; bounded crawl concurrency is not a claim of a generally thread-safe multi-process crawler.
+- В публичном запуске нет цен и остатков: эти поля не выдумываются, если API
+  их не вернул.
+- HTML и Playwright адаптеры покрыты локальными контрактами; в данном запуске
+  они не обращались к внешнему сайту.
+- Один bounded search page не является полным зеркалом каталога. Для массовой
+  загрузки Open Facts рекомендует выгрузки CSV/JSONL.
+- `bsl/ImportEndpoint.bsl` показывает границу конфигурационно-зависимого
+  импорта 1С. Это не самостоятельный запускаемый модуль и не проверялось в
+  реальной ИБ 1С.
+- Нет auth, proxy policy, distributed worker coordination и PostgreSQL
+  migration; SQLite-режим рассчитан на локальный single-writer запуск.

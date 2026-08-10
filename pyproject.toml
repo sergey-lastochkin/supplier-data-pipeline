@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "supplier-data-pipeline"
 version = "0.1.0"
-description = "Resilient supplier ingestion and canonicalization pipeline with incremental state, drift detection, matching, deltas, and recovery semantics."
+description = "Incremental public-catalog ingestion with checkpoints, schema gates, snapshots, deltas and conservative matching."
 requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.12,<5",

@@ -5,13 +5,10 @@ import json
 import random
 from collections.abc import Awaitable, Callable
 from hashlib import sha256
-from typing import TypeVar
 
 from .domain import Metrics, SchemaChanged, SourceUnavailable, SupplierAdapter
 from .matching import Matcher
 from .normalization import parse_product
-
-Result = TypeVar("Result")
 
 
 class InMemoryMetrics:
@@ -22,7 +19,7 @@ class InMemoryMetrics:
         self.values[name] = self.values.get(name, 0) + value
 
 
-async def retry(
+async def retry[Result](
     operation: Callable[[], Awaitable[Result]],
     attempts: int = 3,
     base_delay: float = 0.01,
@@ -71,6 +68,9 @@ class Pipeline:
                     )
                     for product in products:
                         decision = self.matcher.match(product, candidates)
+                        self.metrics.increment(
+                            "matches_" + decision["decision"].lower()
+                        )
                         if decision["decision"] == "MANUAL_REVIEW":
                             self.store.stage_review(
                                 batch_id,

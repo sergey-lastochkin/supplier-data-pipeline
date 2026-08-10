@@ -10,3 +10,8 @@ __all__ = [
     "SQLiteStore",
     "SchemaChanged",
 ]
+"""Incremental product-catalog ingestion primitives."""
+
+from .adapters import OPEN_FACTS_SOURCES, OpenFactsSearchAdapter, OpenFactsSource
+
+__all__ = ["OPEN_FACTS_SOURCES", "OpenFactsSearchAdapter", "OpenFactsSource"]

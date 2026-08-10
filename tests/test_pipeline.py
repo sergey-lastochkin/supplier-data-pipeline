@@ -4,8 +4,11 @@ from decimal import Decimal
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+
 from supplier_pipeline.adapters import (
     HtmlSupplierAdapter,
+    OpenFactsSearchAdapter,
+    OpenFactsSource,
     RestSupplierAdapter,
     playwright_fetch_page,
 )
@@ -22,17 +25,17 @@ from supplier_pipeline.store import SQLiteStore
 
 
 def row(**changes):
-    base = dict(
-        external_id="1",
-        sku=" ab-c 1 ",
-        manufacturer_sku="m-1",
-        name="Widget",
-        brand="Acme",
-        price="10,50",
-        currency="rur",
-        stock="3",
-        unit="PCS",
-    )
+    base = {
+        "external_id": "1",
+        "sku": " ab-c 1 ",
+        "manufacturer_sku": "m-1",
+        "name": "Widget",
+        "brand": "Acme",
+        "price": "10,50",
+        "currency": "rur",
+        "stock": "3",
+        "unit": "PCS",
+    }
     base.update(changes)
     return base
 
@@ -130,6 +133,39 @@ def test_http_429_retries_then_succeeds():
     assert (
         run(adapter, "http", SQLiteStore())[0]["kind"] == "created" and calls["n"] == 2
     )
+
+
+def test_open_facts_adapter_maps_bounded_public_catalog_response():
+    request_headers = []
+
+    def handler(request):
+        request_headers.append(request.headers["user-agent"])
+        return httpx.Response(
+            200,
+            json={
+                "products": [
+                    {
+                        "code": "123",
+                        "product_name": "Catalog item",
+                        "brands": "Example",
+                        "last_modified_t": 1,
+                    },
+                    {"code": "missing-name"},
+                ]
+            },
+        )
+
+    adapter = OpenFactsSearchAdapter(
+        OpenFactsSource("catalog", "Catalog", "https://catalog.example", "product"),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        rate_per_second=10_000,
+    )
+    assert run(adapter, "catalog", SQLiteStore())[0]["kind"] == "created"
+    assert adapter.observation.accepted == 1
+    assert adapter.observation.skipped_reasons == {"missing_product_name": 1}
+    assert request_headers == [
+        "supplier-data-pipeline/0.2 (github.com/sergey-lastochkin/supplier-data-pipeline)"
+    ]
 
 
 def test_http_500_and_timeout_fail_after_retry():
