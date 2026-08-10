@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "supplier-data-pipeline"
 version = "0.1.0"
-description = "Incremental public-catalog ingestion with checkpoints, schema gates, snapshots, deltas and conservative matching."
+description = "Импорт открытых товарных каталогов: контрольные точки, проверка схемы и сопоставление."
 requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.12,<5",
