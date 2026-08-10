@@ -16,6 +16,11 @@
 хэши ответов, поля схемы, дельты и ошибки находятся в
 [results.json](studies/openfacts-catalog-run-2026-08-10/results.json) и
 [source-manifest.json](studies/openfacts-catalog-run-2026-08-10/source-manifest.json).
+Зафиксированный запуск принял 26 из 36 полученных записей за 16.872 секунды:
+10 записей без `product_name` были отклонены схемным gate, ошибок источников не
+было. Между тремя разными каталогами не встретилось точного barcode-match и не
+появилось кандидатов для ручной проверки; это факт этого small run, а не
+обещание качества сопоставления.
 
 ![Метрики запуска](studies/openfacts-catalog-run-2026-08-10/graphs/source-metrics.svg)
 

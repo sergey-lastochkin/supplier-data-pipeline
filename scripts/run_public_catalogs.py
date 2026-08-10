@@ -77,7 +77,7 @@ async def collect(args: argparse.Namespace) -> tuple[dict[str, object], dict[str
                     "response_sha256": observation.response_sha256,
                     "response_bytes": observation.response_bytes,
                     "response_headers": observation.response_headers,
-                    "raw_snapshot": str(raw_path),
+                    "raw_snapshot": f"raw/{source.slug}.json (outside repository)",
                     "fields": observation.fields,
                     "schema_required": ["code", "product_name"],
                     "schema_status": "accepted",
@@ -114,7 +114,7 @@ async def collect(args: argparse.Namespace) -> tuple[dict[str, object], dict[str
         "run_id": args.run_id,
         "retrieved_at": retrieved_at,
         "raw_storage": {
-            "location": str(raw_dir),
+            "location": "external --work-dir/raw (not committed)",
             "committed_to_repository": False,
             "reason": "source responses are external database contents; only provenance is committed",
         },
