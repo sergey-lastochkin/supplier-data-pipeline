@@ -12,7 +12,7 @@ read-only запроса с `page_size=12` и паузой 7 секунд меж
 | Open Pet Food Facts | 12 | 11 | 1 | отсутствует `product_name` | 11 created |
 
 Итог: 26 принятых записей, 26 уникальных source key и normalized SKU, 0 ошибок
-источников, 0 exact auto matches, 0 manual review, 16.872 секунды. Нулевой
+источников, 0 exact auto matches, 0 manual review, 15.162 секунды. Нулевой
 match rate в этом запуске ожидаем для трёх разных товарных доменов и явно не
 интерпретируется как качество общего алгоритма.
 
