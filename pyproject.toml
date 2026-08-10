@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 playwright = ["playwright>=1.50,<2"]
-dev = ["pytest>=8,<9"]
+dev = ["pytest>=8,<9", "ruff>=0.12,<1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
