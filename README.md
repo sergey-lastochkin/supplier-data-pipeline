@@ -1,5 +1,7 @@
 # Пайплайн товарных каталогов
 
+[![CI](https://github.com/sergey-lastochkin/supplier-data-pipeline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sergey-lastochkin/supplier-data-pipeline/actions/workflows/ci.yml)
+
 Проверка импорта, валидации и сопоставления карточек товаров. Код умеет сохранять контрольную точку, историю изменений и очередь спорных совпадений.
 
 ![Результат прогона каталогов](studies/openfacts-catalog-run-2026-08-10/graphs/source-metrics.svg)
